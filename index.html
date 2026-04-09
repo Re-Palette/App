@@ -10,12 +10,29 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{width:100%;height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;background:#111;-webkit-tap-highlight-color:transparent;}
 button{font-family:'DM Sans',sans-serif;cursor:pointer;}
-#shell{width:100%;height:100%;position:relative;overflow:hidden;background:#F8F6F1;}
-@media(min-width:600px){#shell{width:390px;height:844px;margin:0 auto;margin-top:max(0px,calc(50vh - 422px));}}
-#shell-header{position:absolute;top:0;left:0;right:0;z-index:200;}
-#shell-nav{position:fixed;bottom:0;left:0;right:0;z-index:300;} @media(min-width:600px){#shell-nav{position:absolute;}}
-#scroll-area{position:absolute;top:52px;left:0;right:0;bottom:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(72px + env(safe-area-inset-bottom) + 16px);}
+
+/* shellをflexboxで3段構成にする（header / scroll / nav） */
+#shell{
+  width:100%;
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  background:#F8F6F1;
+  overflow:hidden;
+}
+@media(min-width:600px){
+  #shell{
+    width:390px;
+    height:844px;
+    margin:0 auto;
+    margin-top:max(0px,calc(50vh - 422px));
+  }
+}
+
+#shell-header{flex:0 0 auto;z-index:200;}
+#scroll-area{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;}
 #scroll-area::-webkit-scrollbar{display:none;}
+#shell-nav{flex:0 0 auto;z-index:300;padding-bottom:env(safe-area-inset-bottom);background:rgba(255,255,255,0.97);}
 @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes scanLine{0%{top:8%}100%{top:88%}}
@@ -32,6 +49,7 @@ button{font-family:'DM Sans',sans-serif;cursor:pointer;}
 <body>
 
 <input type="file" id="cam-skin" accept="image/*" capture="user" style="display:none" onchange="handleSkinPhoto(this)">
+<input type="file" id="cam-color" accept="image/*" capture="user" style="display:none" onchange="handleColorPhoto(this)">
 <input type="file" id="cam-scanner" accept="image/*" capture="environment" style="display:none" onchange="handleScannerPhoto(this)">
 <div id="shell">
 
@@ -56,7 +74,7 @@ button{font-family:'DM Sans',sans-serif;cursor:pointer;}
 
 
 <!-- BOTTOM NAV -->
-<div id="shell-nav"><nav id="bottom-nav" style="height:calc(72px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:rgba(255,255,255,0.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:0.5px solid #E0DDD6;display:grid;grid-template-columns:repeat(7,1fr);">
+<div id="shell-nav"><nav id="bottom-nav" style="background:rgba(255,255,255,0.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:0.5px solid #E0DDD6;display:grid;grid-template-columns:repeat(7,1fr);height:72px;">
   <button onclick="showTab('home')" class="navBtn" data-tab="home" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:transparent;border:none;border-top:2px solid #A899C0;color:#7A6878;padding:0 2px;">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
     <span style="font-size:7px;letter-spacing:0.04em;font-weight:500;">HOME</span>
@@ -90,7 +108,7 @@ button{font-family:'DM Sans',sans-serif;cursor:pointer;}
 
 <script>
 const C={bg:"#F8F6F1",white:"#FFFFFF",moss:"#6B7B6B",mossLight:"#A8BBA8",mossDark:"#8FAF8F",mossUltra:"#E4EBE4",charcoal:"#7A6878",gray:"#9A9490",grayLight:"#E0DDD6",grayUltra:"#F2F0EB",cream:"#F5F0E8",gold:"#D4B87A",goldLight:"#F5ECD0",rose:"#C49B9B",roseLight:"#F0E4E4",ink:"#F0ECF8"};
-let currentTab='home',cabinet=[],skinPhase='idle',skinRes=null,skinCapturedImg=null,scannerPhase='idle',scannerProd=null,scannerSaved=false,scannerAct=null,scannerCapturedImg=null,colorPhase='idle',colorRes=null,academyCat='makeup',academyLv='beginner';
+let currentTab='home',cabinet=[],skinPhase='idle',skinRes=null,skinCapturedImg=null,scannerPhase='idle',scannerProd=null,scannerSaved=false,scannerAct=null,scannerCapturedImg=null,colorPhase='idle',colorRes=null,colorMode=null,colorCapturedImg=null,colorQuizAnswers={},colorQuizStep=0,academyCat='makeup',academyLv='beginner';
 
 function pill(t,c=C.moss,b=C.mossUltra){return`<span style="display:inline-block;padding:3px 11px;border-radius:20px;background:${b};color:${c};font-size:8px;letter-spacing:0.15em;text-transform:uppercase;font-weight:500;">${t}</span>`;}
 function waterDrops(n=12,op=0.1,light=false){let h='<div style="position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:0;">';for(let i=0;i<n;i++){const x=(i*41+13)%100,y=(i*57+9)%100,s=2+(i%5)*1.4,d=(i*0.38)%3.2,dur=3+(i%4);const col=light?`rgba(255,255,255,${op*2.2})`:`rgba(107,123,107,${op})`;const brd=light?`rgba(255,255,255,${op*3})`:`rgba(107,123,107,${op*1.4})`;h+=`<div style="position:absolute;left:${x}%;top:${y}%;width:${s}px;height:${s*1.35}px;border-radius:50% 50% 50% 50% / 60% 60% 40% 40%;background:${col};border:0.5px solid ${brd};animation:floatDrop ${dur}s ease-in-out ${d}s infinite;"></div>`;}return h+'</div>';}
@@ -213,21 +231,371 @@ function renderCabinet(){
   return`<div style="min-height:calc(100dvh - 52px - 72px);background:${C.bg};"><div style="background:${C.roseLight};border-bottom:0.5px solid ${C.grayLight};padding:20px 16px 18px;position:relative;overflow:hidden;">${waterDrops(8,0.07)}<div style="position:relative;">${pill('My Cabinet',C.rose,'rgba(196,155,155,0.2)')}<h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:26px;font-weight:400;color:${C.charcoal};margin-top:8px;">マイドレッサー</h2></div></div><div style="padding:20px 16px;"><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">${cabinet.map((item,i)=>`<div class="lift" style="background:#fff;border:0.5px solid ${C.grayLight};border-radius:2px;overflow:hidden;animation:fadeUp .5s ${i*0.05}s ease both;"><div style="aspect-ratio:1;background:${C.grayUltra};display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;">${item.thumb?`<img src="${item.thumb}" style="width:100%;height:100%;object-fit:cover;">`:`<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="${C.mossLight}" stroke-width="0.8"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>`}<div style="position:absolute;top:8px;right:8px;">${pill(item.cat||'コスメ',C.rose,C.roseLight)}</div></div><div style="padding:12px;"><p style="font-size:8px;letter-spacing:0.15em;color:${C.mossLight};text-transform:uppercase;margin-bottom:4px;">${item.brand}</p><p style="font-size:12px;color:${C.charcoal};line-height:1.4;">${item.name}</p></div></div>`).join('')}</div></div></div>`;
 }
 
-const ART=[{title:"2025春の透明感：ガラス肌を作る7ステップ",cat:"Skincare",date:"March 2025",ex:"春の紫外線が強まる季節こそ肌の透明感が問われる。皮膚科学者が監修する科学的ガラス肌ルーティンを完全公開。",acc:C.moss,bg:"#E8F0E8"},{title:"香水の選び方：体温と香りの化学反応",cat:"Fragrance",date:"February 2025",ex:"同じ香水でも人によって香りが異なる理由とは。肌質・体温・ライフスタイルから導く、科学的な香り選びの新常識。",acc:C.gold,bg:C.goldLight},{title:"レチノールvs.ビタミンC：皮膚科学の最前線",cat:"Ingredients",date:"January 2025",ex:"2大美容成分の作用メカニズムを徹底解説。正しい濃度・組み合わせ・塗布順序でエイジングケアの効果を最大化。",acc:"#7AA8C4",bg:"#E0EDF5"},{title:"日本の引き算美容：less is more の哲学",cat:"Lifestyle",date:"December 2024",ex:"10ステップスキンケアの時代に逆行する「5分美容」の本質。シンプルで持続可能なビューティーの深層を探る。",acc:"#B5A4C4",bg:"#EBE8F5"}];
-function renderEditorial(){
-  return`<div style="min-height:calc(100dvh - 52px - 72px);background:${C.bg};"><div style="background:#F0ECF8;padding:36px 16px 28px;position:relative;overflow:hidden;">${orbs('#D0E4D0','#F0E8D0','#E0D8F0')}${waterDrops(12,0.07,true)}<div style="position:relative;">${pill('Beauty Editorial',C.mossLight,'rgba(107,123,107,0.18)')}<h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:32px;font-weight:400;color:#5A4E68;margin-top:12px;line-height:1.1;">美容専門<br><em style="color:${C.mossLight};">情報誌</em></h2><p style="font-size:12px;color:rgba(163,184,163,0.8);margin-top:10px;line-height:1.8;font-weight:300;">皮膚科学・成分・ライフスタイルの3軸で、本当に役立つ美容情報をお届けします。</p></div></div><div style="padding:20px 16px;"><div style="display:flex;flex-direction:column;gap:1px;background:${C.grayLight};">${ART.map((a,i)=>`<div class="rowHov" style="background:#fff;cursor:pointer;animation:fadeUp .7s ${i*0.1}s ease both;overflow:hidden;"><div style="height:120px;background:${a.bg};display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;">${waterDrops(6,0.06)}<div style="position:relative;z-index:1;opacity:0.4;"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="${a.acc}" stroke-width="0.7"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div></div><div style="padding:18px 16px 20px;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;"><span style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:${a.acc};font-weight:500;">${a.cat}</span><span style="width:1px;height:10px;background:${C.grayLight};"></span><span style="font-size:9px;color:${C.mossLight};">${a.date}</span></div><h3 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:16px;font-weight:400;color:${C.charcoal};margin:0 0 10px;line-height:1.4;">${a.title}</h3><p style="margin:0 0 14px;font-size:11px;color:${C.gray};line-height:1.85;font-weight:300;">${a.ex}</p><div style="display:flex;align-items:center;gap:5px;color:${a.acc};font-size:9px;letter-spacing:0.12em;text-transform:uppercase;"><span>Read more</span><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div></div></div>`).join('')}</div></div></div>`;
+
+// ── Editorial: 状態管理 ──
+let editorialArticles=[];
+let editorialLoading=false;
+let editorialError=false;
+let editorialLastFetch=0;
+const EDITORIAL_TTL=6*60*60*1000;
+
+function editorialAccByCat(cat){
+  const c=(cat||'').toLowerCase();
+  if(c.includes('skin')||c.includes('スキン'))return{acc:'#7AA87A',bg:'#E8F0E8'};
+  if(c.includes('make')||c.includes('メイク'))return{acc:'#C49B9B',bg:'#F0E8E8'};
+  if(c.includes('ingr')||c.includes('成分')||c.includes('ingredient'))return{acc:'#C4A070',bg:'#F5ECD8'};
+  if(c.includes('trend')||c.includes('トレンド'))return{acc:'#9B8CC4',bg:'#EDE8F5'};
+  if(c.includes('hair')||c.includes('ヘア'))return{acc:'#A07840',bg:'#F5EAD8'};
+  if(c.includes('frag')||c.includes('フレグ'))return{acc:'#8080C0',bg:'#EAE8F8'};
+  return{acc:'#7AA8C4',bg:'#E0EDF5'};
 }
 
-const SEAS=[{name:"Spring",jp:"スプリング",cols:["#F5C4A0","#E8A878","#F0D4B0","#D4956A","#FFE4C4"],desc:"イエローベース・高明度。コーラル・ピーチ・アイボリーが最適。",em:"🌸",acc:"#D4956A",bg:"#FFF0E4"},{name:"Summer",jp:"サマー",cols:["#C4D4E8","#A0B8D0","#D4C8E0","#8BA8C0","#E8D8EC"],desc:"ブルーベース・低彩度。ラベンダー・ローズ・アッシュが映える。",em:"🌿",acc:"#8BA8C0",bg:"#E8F0F8"},{name:"Autumn",jp:"オータム",cols:["#C8A478","#A07840","#D4B890","#8B6030","#E0C8A0"],desc:"イエローベース・低明度。テラコッタ・カーキ・ブラウンが似合う。",em:"🍂",acc:"#A07840",bg:"#F5EAD8"},{name:"Winter",jp:"ウィンター",cols:["#B8C4E0","#C0C0D0","#8080A0","#C0CCEC","#E8E8F0"],desc:"ブルーベース・高彩度。ロイヤルブルー・ブラック・ホワイトが映える。",em:"❄️",acc:"#8080C0",bg:"#EAE8F8"}];
-const COSME_COLOR={Spring:["コーラルリップ","ピーチブラッシュ","ゴールドシャドウ","ヌードグロス"],Summer:["モーブリップ","ラベンダーシャドウ","ローズブラッシュ","スモーキーライナー"],Autumn:["テラコッタリップ","ブラウンシャドウ","コッパーブラッシュ","オリーブライナー"],Winter:["レッドリップ","プラムシャドウ","ロゼブラッシュ","ブラックライナー"]};
+async function fetchEditorial(force){
+  const now=Date.now();
+  if(!force&&editorialArticles.length>0&&(now-editorialLastFetch)<EDITORIAL_TTL)return;
+  editorialLoading=true;editorialError=false;
+  if(currentTab==='editorial')renderTab();
+  try{
+    const today=new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'});
+    // Step1: web_searchで最新情報を取得
+    const resp1=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:3000,
+        tools:[{type:'web_search_20250305',name:'web_search'}],
+        messages:[{role:'user',content:`${today}の日本の最新美容・コスメニュースをウェブ検索してください。VOCE、MAQUIA、@cosme、WWD Beauty Japan、VOGUE Japan、ELLE Japan、美的、LDKなどから最新記事を8件分検索してください。`}]
+      })
+    });
+    const data1=await resp1.json();
+
+    // Step2: 検索結果をもとにJSON生成（ツール結果を含む全メッセージを渡す）
+    const resp2=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:3000,
+        tools:[{type:'web_search_20250305',name:'web_search'}],
+        messages:[
+          {role:'user',content:`${today}の日本の最新美容・コスメニュースをウェブ検索してください。VOCE、MAQUIA、@cosme、WWD Beauty Japan、VOGUE Japan、ELLE Japan、美的、LDKなどから最新記事を8件分検索してください。`},
+          {role:'assistant',content:data1.content},
+          {role:'user',content:`上記の検索結果をもとに、最新の美容ニュース8件を以下のJSON配列形式のみで出力してください。前後に説明文・マークダウン記法は一切不要です:\n[{"title":"記事タイトル日本語30字以内","cat":"Skincare|Makeup|Ingredient|Trend|Lifestyle|Fragrance|Hair","catJa":"スキンケア|メイク|成分|トレンド|ライフ|フレグランス|ヘア","summary":"読者が内容を把握できる3〜4文の日本語まとめ","source":"情報源メディア名","url":"元記事の実際のURL（不明な場合は空文字）","date":"YYYY-MM-DD"}]`}
+        ]
+      })
+    });
+    const data2=await resp2.json();
+    const tb=data2.content.find(b=>b.type==='text');
+    if(!tb)throw new Error('no text block in step2');
+    const raw=tb.text.replace(/```json|```/g,'').trim();
+    const m=raw.match(/\[[\s\S]*\]/);
+    if(!m)throw new Error('no JSON array found');
+    editorialArticles=JSON.parse(m[0]);
+    editorialLastFetch=Date.now();
+  }catch(e){
+    console.error('Editorial error:',e);
+    editorialError=true;
+  }
+  editorialLoading=false;
+  if(currentTab==='editorial')renderTab();
+}
+
+function startEditorialAutoRefresh(){
+  fetchEditorial();
+  setInterval(()=>fetchEditorial(true),EDITORIAL_TTL);
+}
+
+function renderEditorial(){
+  const header=`<div style="background:#F0ECF8;padding:36px 16px 28px;position:relative;overflow:hidden;">${orbs('#D0E4D0','#F0E8D0','#E0D8F0')}${waterDrops(12,0.07,true)}<div style="position:relative;">${pill('Beauty Editorial',C.mossLight,'rgba(107,123,107,0.18)')}<h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:32px;font-weight:400;color:#5A4E68;margin-top:12px;line-height:1.1;">美容専門<br><em style="color:${C.mossLight};">情報誌</em></h2><p style="font-size:12px;color:rgba(163,184,163,0.8);margin-top:10px;line-height:1.8;font-weight:300;">最新の美容ニュース・トレンドを6時間ごとに自動更新。</p></div></div>`;
+
+  if(editorialLoading)return`<div style="background:${C.bg};">${header}<div style="padding:70px 16px;text-align:center;"><div style="width:40px;height:40px;border-radius:50%;border:1px solid ${C.mossLight};border-top-color:transparent;margin:0 auto 20px;animation:spin 1s linear infinite;"></div><p style="font-size:11px;color:${C.gray};letter-spacing:0.15em;">最新ニュースを取得中...</p></div></div>`;
+
+  if(editorialError)return`<div style="background:${C.bg};">${header}<div style="padding:40px 16px;text-align:center;"><p style="font-size:12px;color:${C.rose};margin-bottom:16px;">情報の取得に失敗しました</p><button onclick="editorialError=false;fetchEditorial(true)" style="padding:10px 24px;border-radius:24px;background:${C.moss};color:#fff;border:none;font-size:12px;">再読み込み</button></div></div>`;
+
+  const upd=editorialLastFetch?new Date(editorialLastFetch).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}):'';
+  const arts=editorialArticles;
+
+  return`<div style="background:${C.bg};">${header}<div style="padding:12px 16px 6px;display:flex;justify-content:space-between;align-items:center;"><span style="font-size:9px;color:${C.mossLight};">${upd?'更新: '+upd:''}</span><button onclick="editorialArticles=[];fetchEditorial(true)" style="font-size:9px;color:${C.mossLight};background:transparent;border:0.5px solid ${C.mossLight};border-radius:20px;padding:4px 12px;">最新に更新</button></div><div style="padding:8px 16px 20px;"><div style="display:flex;flex-direction:column;gap:1px;background:${C.grayLight};">${arts.map((a,i)=>{const{acc,bg}=editorialAccByCat(a.cat);const hasUrl=a.url&&a.url.startsWith('http');return`<div class="rowHov" style="background:#fff;animation:fadeUp .6s ${i*0.06}s ease both;overflow:hidden;"><div style="height:90px;background:${bg};display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;">${waterDrops(5,0.06)}<div style="position:relative;z-index:1;opacity:0.3;"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="${acc}" stroke-width="0.7"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>${a.source?`<div style="position:absolute;top:10px;right:12px;font-size:8px;color:${acc};letter-spacing:0.08em;font-weight:500;opacity:0.8;">${a.source}</div>`:''}</div><div style="padding:15px 16px 18px;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;"><span style="font-size:8px;letter-spacing:0.18em;text-transform:uppercase;color:${acc};font-weight:500;">${a.catJa||a.cat}</span><span style="width:1px;height:9px;background:${C.grayLight};"></span><span style="font-size:9px;color:${C.mossLight};">${a.date||''}</span></div><h3 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:17px;font-weight:400;color:${C.charcoal};margin:0 0 9px;line-height:1.4;">${a.title}</h3><p style="margin:0 0 13px;font-size:11px;color:${C.gray};line-height:1.9;font-weight:300;">${a.summary}</p>${hasUrl?`<a href="${a.url}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;color:${acc};font-size:9px;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;border:0.5px solid ${acc}44;border-radius:20px;padding:5px 12px;">元記事を読む <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></a>`:`<span style="font-size:9px;color:${C.mossLight};">${a.source||''}より</span>`}</div></div>`;}).join('')}</div></div></div>`;
+}
+
+
+// ── パーソナルカラー診断 ──
+const SEAS=[
+  {name:"Spring",jp:"スプリング",cols:["#F5C4A0","#E8A878","#F0D4B0","#D4956A","#FFE4C4"],desc:"イエローベース・高明度。コーラル・ピーチ・アイボリーが最適。",em:"🌸",acc:"#D4956A",bg:"#FFF0E4"},
+  {name:"Summer",jp:"サマー",cols:["#C4D4E8","#A0B8D0","#D4C8E0","#8BA8C0","#E8D8EC"],desc:"ブルーベース・低彩度。ラベンダー・ローズ・アッシュが映える。",em:"🌿",acc:"#8BA8C0",bg:"#E8F0F8"},
+  {name:"Autumn",jp:"オータム",cols:["#C8A478","#A07840","#D4B890","#8B6030","#E0C8A0"],desc:"イエローベース・低明度。テラコッタ・カーキ・ブラウンが似合う。",em:"🍂",acc:"#A07840",bg:"#F5EAD8"},
+  {name:"Winter",jp:"ウィンター",cols:["#B8C4E0","#C0C0D0","#8080A0","#C0CCEC","#E8E8F0"],desc:"ブルーベース・高彩度。ロイヤルブルー・ブラック・ホワイトが映える。",em:"❄️",acc:"#8080C0",bg:"#EAE8F8"}
+];
+const COSME_COLOR={
+  Spring:["コーラルリップ","ピーチブラッシュ","ゴールドシャドウ","ヌードグロス"],
+  Summer:["モーブリップ","ラベンダーシャドウ","ローズブラッシュ","スモーキーライナー"],
+  Autumn:["テラコッタリップ","ブラウンシャドウ","コッパーブラッシュ","オリーブライナー"],
+  Winter:["レッドリップ","プラムシャドウ","ロゼブラッシュ","ブラックライナー"]
+};
+
+// 診断フェーズ: idle / mode_select / quiz / photo_ready / analyzing / result / error
+// colorPhase, colorRes, colorMode, colorCapturedImg, colorQuizAnswers, colorQuizStep
+// → L3の共通変数宣言で定義済み
+
+const COLOR_QUIZ=[
+  {
+    q:"日焼けすると肌はどうなりますか？",
+    opts:[
+      {label:"赤くなってすぐ戻る",val:"summer"},
+      {label:"赤くなってから少し焼ける",val:"winter"},
+      {label:"あまり赤くならず小麦色に焼ける",val:"autumn"},
+      {label:"ゴールドっぽくきれいに焼ける",val:"spring"}
+    ]
+  },
+  {
+    q:"手首の血管の色は？",
+    opts:[
+      {label:"青・紫っぽい",val:"blue"},
+      {label:"緑っぽい",val:"yellow"},
+      {label:"どちらでもない",val:"neutral"}
+    ]
+  },
+  {
+    q:"似合うと言われるアクセサリーは？",
+    opts:[
+      {label:"シルバー・プラチナ",val:"cool"},
+      {label:"ゴールド・ブロンズ",val:"warm"},
+      {label:"どちらも似合う",val:"neutral"}
+    ]
+  },
+  {
+    q:"白を顔の近くに当てると？",
+    opts:[
+      {label:"顔が明るく見える（真っ白が似合う）",val:"winter"},
+      {label:"少しくすんで見える（オフホワイトが合う）",val:"summer"},
+      {label:"クリーム色のほうが顔色が良く見える",val:"spring_autumn"}
+    ]
+  },
+  {
+    q:"得意な雰囲気・スタイルは？",
+    opts:[
+      {label:"フレッシュ・キュート・明るい",val:"spring"},
+      {label:"エレガント・ソフト・上品",val:"summer"},
+      {label:"ナチュラル・アース・大人っぽい",val:"autumn"},
+      {label:"クール・シャープ・都会的",val:"winter"}
+    ]
+  }
+];
+
+function resetColor(){
+  colorPhase='idle';colorRes=null;colorMode=null;
+  colorCapturedImg=null;colorQuizAnswers={};colorQuizStep=0;
+  renderTab();
+}
 
 function renderColor(){
-  if(colorPhase==='idle')return`<div style="min-height:calc(100dvh - 52px - 72px);background:${C.bg};">${sectionHead('Color Palette','パーソナルカラー診断','#9B8CC4','rgba(155,140,196,0.2)','#EDE8F5')}<div style="padding:28px 16px;animation:fadeUp .6s ease;"><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:32px;">${SEAS.map((s,i)=>`<div class="lift" style="background:#fff;padding:16px;border:0.5px solid ${C.grayLight};border-radius:2px;animation:fadeUp .5s ${i*0.08}s ease both;"><div style="display:flex;gap:4px;margin-bottom:10px;">${s.cols.map(c=>`<div style="flex:1;height:24px;background:${c};border-radius:1px;"></div>`).join('')}</div><div style="display:flex;justify-content:space-between;align-items:center;"><div><p style="font-family:'Cormorant Garamond',Georgia,serif;font-size:14px;font-weight:400;color:${C.charcoal};margin-bottom:1px;">${s.jp}</p><p style="font-size:7px;letter-spacing:0.18em;color:${s.acc};">${s.name}</p></div><span style="font-size:20px;">${s.em}</span></div></div>`).join('')}</div><div style="display:flex;justify-content:center;"><button onclick="startColor()" style="width:80px;height:80px;border-radius:50%;background:#9B8CC4;color:#fff;border:none;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:8px;gap:3px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg><span>診断</span></button></div></div></div>`;
-  if(colorPhase==='analyzing')return`<div style="min-height:calc(100dvh - 52px - 72px);background:${C.bg};">${sectionHead('Color Palette','パーソナルカラー診断','#9B8CC4','rgba(155,140,196,0.2)','#EDE8F5')}<div style="text-align:center;padding:80px 0;animation:fadeIn .4s ease;"><div style="width:64px;height:64px;border-radius:50%;border:1px solid #9B8CC4;border-top-color:transparent;margin:0 auto 22px;animation:spin 1s linear infinite;"></div><p style="color:${C.gray};font-size:11px;letter-spacing:0.18em;">カラー特性を解析中...</p></div></div>`;
+  const head=`${sectionHead('Color Palette','パーソナルカラー診断','#9B8CC4','rgba(155,140,196,0.2)','#EDE8F5')}`;
+
+  // ── トップ ──
+  if(colorPhase==='idle'){
+    return`<div style="background:${C.bg};">${head}
+      <div style="padding:24px 16px;animation:fadeUp .5s ease;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:28px;">
+          ${SEAS.map(s=>`<div style="background:#fff;padding:14px;border:0.5px solid ${C.grayLight};border-radius:2px;">
+            <div style="display:flex;gap:3px;margin-bottom:8px;">${s.cols.map(c=>`<div style="flex:1;height:18px;background:${c};border-radius:1px;"></div>`).join('')}</div>
+            <p style="font-family:'Cormorant Garamond',Georgia,serif;font-size:13px;color:${C.charcoal};">${s.jp}</p>
+            <p style="font-size:7px;letter-spacing:0.15em;color:${s.acc};">${s.name}</p>
+          </div>`).join('')}
+        </div>
+        <p style="font-size:12px;color:${C.gray};line-height:1.9;margin-bottom:24px;font-weight:300;">写真撮影か質問に答えることで、あなたのパーソナルカラーをAIが診断します。</p>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <button onclick="colorMode='photo';colorPhase='photo_ready';renderTab()" style="width:100%;padding:16px;border-radius:2px;background:#9B8CC4;color:#fff;border:none;display:flex;align-items:center;gap:14px;">
+            <div style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+            <div style="text-align:left;">
+              <p style="font-size:13px;font-weight:500;margin-bottom:2px;">写真で診断</p>
+              <p style="font-size:10px;opacity:0.75;">自撮り写真からAIが肌・目・髪の色を解析</p>
+            </div>
+          </button>
+          <button onclick="colorMode='quiz';colorPhase='quiz';colorQuizStep=0;colorQuizAnswers={};renderTab()" style="width:100%;padding:16px;border-radius:2px;background:#fff;color:${C.charcoal};border:0.5px solid #9B8CC4;display:flex;align-items:center;gap:14px;">
+            <div style="width:40px;height:40px;border-radius:50%;background:#EDE8F5;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9B8CC4" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div style="text-align:left;">
+              <p style="font-size:13px;font-weight:500;color:${C.charcoal};margin-bottom:2px;">質問で診断</p>
+              <p style="font-size:10px;color:${C.gray};">5問の質問に答えてタイプを判定</p>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── 写真撮影準備 ──
+  if(colorPhase==='photo_ready'){
+    return`<div style="background:${C.bg};">${head}
+      <div style="padding:24px 16px;animation:fadeUp .5s ease;">
+        <div style="background:#EDE8F5;border-radius:2px;padding:28px 20px;text-align:center;margin-bottom:20px;position:relative;overflow:hidden;">
+          ${waterDrops(8,0.08)}
+          <div style="position:relative;">
+            <div style="width:72px;height:72px;border-radius:50%;background:#9B8CC4;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+            <p style="font-family:'Cormorant Garamond',Georgia,serif;font-size:22px;color:#5A4E68;margin-bottom:10px;">撮影のポイント</p>
+            <div style="text-align:left;display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
+              ${["自然光（窓際）の下で撮影","メイクなしか薄めで","正面から顔全体が映るように","白や明るい背景が理想"].map(t=>`<div style="display:flex;align-items:center;gap:8px;"><div style="width:5px;height:5px;border-radius:50%;background:#9B8CC4;flex-shrink:0;"></div><p style="font-size:12px;color:#5A4E68;">${t}</p></div>`).join('')}
+            </div>
+            <button onclick="document.getElementById('cam-color').click()" style="width:100%;padding:14px;border-radius:24px;background:#9B8CC4;color:#fff;border:none;font-size:13px;">カメラを起動する</button>
+          </div>
+        </div>
+        <button onclick="resetColor()" style="width:100%;padding:12px;border-radius:2px;background:transparent;color:${C.gray};border:0.5px solid ${C.grayLight};font-size:12px;">戻る</button>
+      </div>
+    </div>`;
+  }
+
+  // ── 質問診断 ──
+  if(colorPhase==='quiz'){
+    const step=colorQuizStep;
+    const q=COLOR_QUIZ[step];
+    const progress=Math.round((step/COLOR_QUIZ.length)*100);
+    return`<div style="background:${C.bg};">${head}
+      <div style="padding:24px 16px;animation:fadeUp .4s ease;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+          <div style="flex:1;height:3px;background:${C.grayUltra};border-radius:2px;">
+            <div style="height:100%;width:${progress}%;background:#9B8CC4;border-radius:2px;transition:width .4s;"></div>
+          </div>
+          <span style="font-size:10px;color:${C.gray};white-space:nowrap;">${step+1} / ${COLOR_QUIZ.length}</span>
+        </div>
+        <p style="font-family:'Cormorant Garamond',Georgia,serif;font-size:20px;color:${C.charcoal};line-height:1.5;margin-bottom:20px;">${q.q}</p>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
+          ${q.opts.map((opt,i)=>`
+            <button onclick="colorQuizAnswers[${step}]='${opt.val}';${step<COLOR_QUIZ.length-1?`colorQuizStep=${step+1};renderTab()`:'analyzeColorQuiz()'}" style="padding:15px 16px;border-radius:2px;background:#fff;border:0.5px solid ${C.grayLight};text-align:left;font-size:13px;color:${C.charcoal};animation:fadeUp .4s ${i*0.05}s ease both;">${opt.label}</button>
+          `).join('')}
+        </div>
+        <button onclick="if(colorQuizStep>0){colorQuizStep--;renderTab()}else{resetColor()}" style="font-size:11px;color:${C.gray};background:transparent;border:none;padding:8px 0;">← 前の質問に戻る</button>
+      </div>
+    </div>`;
+  }
+
+  // ── 解析中 ──
+  if(colorPhase==='analyzing'){
+    return`<div style="background:${C.bg};">${head}
+      <div style="padding:60px 16px;text-align:center;animation:fadeIn .4s ease;">
+        ${colorCapturedImg?`<div style="width:120px;height:120px;border-radius:50%;overflow:hidden;margin:0 auto 24px;border:3px solid #9B8CC4;"><img src="${colorCapturedImg}" style="width:100%;height:100%;object-fit:cover;"></div>`:''}
+        <div style="width:56px;height:56px;border-radius:50%;border:1.5px solid #9B8CC4;border-top-color:transparent;margin:0 auto 20px;animation:spin 1s linear infinite;"></div>
+        <p style="color:${C.gray};font-size:11px;letter-spacing:0.2em;">パーソナルカラーを解析中...</p>
+      </div>
+    </div>`;
+  }
+
+  // ── エラー ──
+  if(colorPhase==='error'){
+    return`<div style="background:${C.bg};">${head}
+      <div style="padding:60px 16px;text-align:center;">
+        <p style="font-size:13px;color:${C.rose};margin-bottom:20px;">診断に失敗しました</p>
+        <button onclick="resetColor()" style="padding:10px 24px;border-radius:24px;background:#9B8CC4;color:#fff;border:none;font-size:12px;">最初からやり直す</button>
+      </div>
+    </div>`;
+  }
+
+  // ── 結果 ──
   const r=colorRes;
-  return`<div style="min-height:calc(100dvh - 52px - 72px);background:${C.bg};">${sectionHead('Color Palette','パーソナルカラー診断','#9B8CC4','rgba(155,140,196,0.2)','#EDE8F5')}<div style="padding:24px 16px;animation:fadeUp .6s ease;"><div style="background:${r.bg};border:0.5px solid ${r.acc}44;border-radius:2px;padding:32px 20px;text-align:center;margin-bottom:14px;position:relative;overflow:hidden;">${waterDrops(10,0.08)}<div style="position:relative;"><p style="font-size:42px;margin-bottom:8px;">${r.em}</p><p style="font-family:'Cormorant Garamond',Georgia,serif;font-size:36px;font-weight:400;color:${C.charcoal};line-height:1;margin-bottom:5px;">${r.jp}</p><p style="font-size:8px;letter-spacing:0.22em;color:${r.acc};text-transform:uppercase;margin-bottom:20px;">${r.name} Type</p><div style="display:flex;justify-content:center;gap:8px;margin-bottom:20px;">${r.cols.map(c=>`<div style="width:32px;height:32px;border-radius:50%;background:${c};border:0.5px solid rgba(0,0,0,0.06);"></div>`).join('')}</div><p style="font-size:12px;color:${C.gray};line-height:2;font-weight:300;">${r.desc}</p></div></div><div style="background:#fff;border:0.5px solid ${C.grayLight};border-radius:2px;padding:18px 16px;margin-bottom:24px;"><p style="font-size:8px;color:${r.acc};letter-spacing:0.18em;text-transform:uppercase;margin-bottom:12px;">おすすめコスメカラー</p><div style="display:flex;gap:8px;flex-wrap:wrap;">${COSME_COLOR[r.name].map(item=>`<span style="padding:7px 14px;border-radius:24px;background:${r.bg};border:0.5px solid ${r.acc}44;font-size:12px;color:${C.charcoal};">${item}</span>`).join('')}</div></div><div style="display:flex;justify-content:center;"><button onclick="colorPhase='idle';renderTab()" style="width:64px;height:64px;border-radius:50%;background:#9B8CC4;color:#fff;border:none;font-size:9px;">再診断</button></div></div></div>`;
+  const sc=SEAS.find(s=>s.name===r.name)||SEAS[0];
+  const cosme=COSME_COLOR[r.name]||[];
+  return`<div style="background:${C.bg};">${head}
+    <div style="padding:20px 16px;animation:fadeUp .6s ease;">
+      ${colorCapturedImg?`<div style="border-radius:2px;overflow:hidden;margin-bottom:14px;aspect-ratio:3/2;"><img src="${colorCapturedImg}" style="width:100%;height:100%;object-fit:cover;"></div>`:''}
+      <div style="background:${sc.bg};border:0.5px solid ${sc.acc}44;border-radius:2px;padding:28px 20px;text-align:center;margin-bottom:12px;position:relative;overflow:hidden;">
+        ${waterDrops(10,0.08)}
+        <div style="position:relative;">
+          <p style="font-size:36px;margin-bottom:6px;">${sc.em}</p>
+          <p style="font-family:'Cormorant Garamond',Georgia,serif;font-size:34px;font-weight:400;color:${C.charcoal};line-height:1;margin-bottom:4px;">${sc.jp}</p>
+          <p style="font-size:8px;letter-spacing:0.22em;color:${sc.acc};text-transform:uppercase;margin-bottom:16px;">${sc.name} Type</p>
+          <div style="display:flex;justify-content:center;gap:8px;margin-bottom:16px;">${sc.cols.map(c=>`<div style="width:28px;height:28px;border-radius:50%;background:${c};border:0.5px solid rgba(0,0,0,0.06);"></div>`).join('')}</div>
+          <p style="font-size:12px;color:${C.gray};line-height:2;font-weight:300;">${r.reason||sc.desc}</p>
+        </div>
+      </div>
+      ${r.features?`<div style="background:#fff;border:0.5px solid ${C.grayLight};border-radius:2px;padding:16px;margin-bottom:12px;">
+        <p style="font-size:9px;color:#9B8CC4;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:10px;">あなたの特徴</p>
+        <div style="display:flex;flex-direction:column;gap:6px;">${r.features.map(f=>`<div style="display:flex;align-items:flex-start;gap:8px;"><div style="width:5px;height:5px;border-radius:50%;background:#9B8CC4;margin-top:5px;flex-shrink:0;"></div><p style="font-size:12px;color:${C.charcoal};line-height:1.6;">${f}</p></div>`).join('')}</div>
+      </div>`:''}
+      <div style="background:#fff;border:0.5px solid ${C.grayLight};border-radius:2px;padding:16px;margin-bottom:12px;">
+        <p style="font-size:9px;color:${sc.acc};letter-spacing:0.15em;text-transform:uppercase;margin-bottom:10px;">おすすめコスメカラー</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">${cosme.map(item=>`<span style="padding:6px 12px;border-radius:24px;background:${sc.bg};border:0.5px solid ${sc.acc}44;font-size:11px;color:${C.charcoal};">${item}</span>`).join('')}</div>
+      </div>
+      ${r.ngColors?`<div style="background:#fff;border:0.5px solid ${C.grayLight};border-radius:2px;padding:16px;margin-bottom:20px;">
+        <p style="font-size:9px;color:${C.rose};letter-spacing:0.15em;text-transform:uppercase;margin-bottom:10px;">避けたほうがいいカラー</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">${r.ngColors.map(item=>`<span style="padding:6px 12px;border-radius:24px;background:#FFF0F0;border:0.5px solid ${C.rose}44;font-size:11px;color:${C.charcoal};">${item}</span>`).join('')}</div>
+      </div>`:''}
+      <div style="display:flex;justify-content:center;margin-bottom:8px;">
+        <button onclick="resetColor()" style="width:64px;height:64px;border-radius:50%;background:#9B8CC4;color:#fff;border:none;font-size:9px;">再診断</button>
+      </div>
+    </div>
+  </div>`;
 }
-function startColor(){colorPhase='analyzing';renderTab();setTimeout(()=>{colorRes=SEAS[Math.floor(Math.random()*4)];colorPhase='result';renderTab();},2400);}
+
+// 写真からパーソナルカラー解析
+async function analyzeColorPhoto(file){
+  colorPhase='analyzing';
+  colorCapturedImg=URL.createObjectURL(file);
+  renderTab();
+  try{
+    const b64=await fileToBase64(file);
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:file.type||'image/jpeg',data:b64}},
+          {type:'text',text:`あなたはパーソナルカラー診断の専門家です。この写真の人物の肌・目・髪・唇の色から春夏秋冬4シーズンを診断してください。
+必ず以下のJSON形式のみで回答（前後に文章不要）:
+{"name":"Spring|Summer|Autumn|Winter","reason":"診断理由を50字以内","features":["特徴1","特徴2","特徴3"],"ngColors":["NGカラー1","NGカラー2","NGカラー3"]}`}
+        ]}]
+      })
+    });
+    const data=await resp.json();
+    const tb=data.content.find(b=>b.type==='text');
+    if(!tb)throw new Error('no text');
+    const clean=tb.text.replace(/```json|```/g,'').trim();
+    colorRes=JSON.parse(clean);
+    colorPhase='result';
+  }catch(e){
+    console.error(e);
+    colorPhase='error';
+  }
+  renderTab();
+}
+
+// 質問からパーソナルカラー解析
+async function analyzeColorQuiz(){
+  colorPhase='analyzing';
+  renderTab();
+  try{
+    const answers=Object.values(colorQuizAnswers).join(', ');
+    const qs=COLOR_QUIZ.map((q,i)=>`Q${i+1}: ${q.q} → ${q.opts.find(o=>o.val===colorQuizAnswers[i])?.label||'未回答'}`).join('\n');
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:800,
+        messages:[{role:'user',content:`パーソナルカラー診断の質問結果です:\n${qs}\n\n以上の回答から春夏秋冬4シーズンを診断してください。必ず以下のJSON形式のみで回答（前後に文章不要）:\n{"name":"Spring|Summer|Autumn|Winter","reason":"診断理由を50字以内","features":["特徴1","特徴2","特徴3"],"ngColors":["NGカラー1","NGカラー2","NGカラー3"]}`}]
+      })
+    });
+    const data=await resp.json();
+    const tb=data.content.find(b=>b.type==='text');
+    if(!tb)throw new Error('no text');
+    const clean=tb.text.replace(/```json|```/g,'').trim();
+    colorRes=JSON.parse(clean);
+    colorPhase='result';
+  }catch(e){
+    console.error(e);
+    colorPhase='error';
+  }
+  renderTab();
+}
+
+function startColor(){colorPhase='idle';renderTab();}
+
 
 const LS={makeup:{beginner:[{t:"ナチュラルデイリーメイク完全版",d:"12:30",v:"24.5K",tag:"デイリー"},{t:"眉毛の描き方 基本と応用",d:"8:45",v:"18.2K",tag:"眉"},{t:"リップカラーの選び方と塗り方",d:"6:15",v:"15.8K",tag:"リップ"}],intermediate:[{t:"大人のスモーキーアイメイク",d:"18:20",v:"32.1K",tag:"アイシャドウ"},{t:"血色感メイクで垢抜け革命",d:"14:05",v:"28.6K",tag:"チーク"},{t:"陶器肌フルカバーベース術",d:"16:40",v:"41.3K",tag:"ベース"}],advanced:[{t:"韓国式グラデーションリップ",d:"22:15",v:"55.7K",tag:"トレンド"},{t:"プロ直伝アイライン完全攻略",d:"25:30",v:"48.2K",tag:"アイライン"},{t:"ファンデ不要の素肌美人メイク",d:"19:55",v:"62.4K",tag:"スキン"}]},hair:{beginner:[{t:"簡単ポニーテールアレンジ術",d:"5:20",v:"19.3K",tag:"アレンジ"},{t:"ストレートアイロンの基本",d:"9:10",v:"22.7K",tag:"アイロン"},{t:"くせ毛を活かすスタイリング",d:"7:45",v:"16.5K",tag:"くせ毛"}],intermediate:[{t:"波ウェーブヘア 完全マスター",d:"15:30",v:"38.9K",tag:"ウェーブ"},{t:"ヘアオイル正しい使い方講座",d:"10:20",v:"29.4K",tag:"ヘアケア"},{t:"耳かけスタイルで小顔効果",d:"8:50",v:"25.1K",tag:"スタイリング"}],advanced:[{t:"フレンチ編み込みハーフアップ",d:"28:00",v:"71.2K",tag:"編み込み"},{t:"ブリーチなしインナーカラー法",d:"32:15",v:"89.5K",tag:"カラー"},{t:"フォーマルシニョン完全解説",d:"24:40",v:"44.8K",tag:"アップスタイル"}]}};
 const LC={beginner:{acc:C.moss,bg:C.mossUltra},intermediate:{acc:C.gold,bg:C.goldLight},advanced:{acc:C.rose,bg:C.roseLight}};
@@ -250,6 +618,15 @@ function showTab(tab){
   document.getElementById('scroll-area').scrollTo({top:0,behavior:'smooth'});
 }
 renderTab();
+startEditorialAutoRefresh();
+
+// ─── カラー診断カメラハンドラ ───
+function handleColorPhoto(input){
+  if(!input.files||!input.files[0])return;
+  const file=input.files[0];
+  input.value='';
+  analyzeColorPhoto(file);
+}
 
 // ─── カメラ → base64変換 ───
 function fileToBase64(file){
